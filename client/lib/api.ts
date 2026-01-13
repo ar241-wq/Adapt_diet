@@ -1,4 +1,4 @@
-import { AuthResponse, Plan, Lead, ChatSession, ChatMessage, LeadFormData, ApiError } from '@/types';
+import { AuthResponse, Plan, Lead, ChatSession, ChatMessage, LeadFormData, ApiError, DietPlanRequest, DietPlanResponse } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
 
@@ -142,6 +142,16 @@ class ApiClient {
       headers: { ...this.getAuthHeaders() },
     });
     return this.handleResponse<ChatMessage[]>(response);
+  }
+
+  // Diet Plan Generator
+  async generateDietPlan(data: DietPlanRequest): Promise<DietPlanResponse> {
+    const response = await fetch(`${API_BASE_URL}/plans/generate-diet/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return this.handleResponse<DietPlanResponse>(response);
   }
 }
 

@@ -106,3 +106,65 @@ export interface ApiError {
   detail?: string;
   [key: string]: string | string[] | undefined;
 }
+
+// Diet Plan Generator types
+export interface DietPlanRequest {
+  height: number;
+  weight: number;
+  allergies?: string[];
+  goal?: 'lose' | 'maintain' | 'gain';
+  age?: number;
+  gender?: 'male' | 'female';
+  activity_level?: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+}
+
+export interface Meal {
+  id: number;
+  name: string;
+  category: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  restrictions: string[];
+  ingredients: string[];
+  contains: string[];
+}
+
+export interface DayMeals {
+  breakfast: Meal | null;
+  lunch: Meal | null;
+  dinner: Meal | null;
+  snack: Meal | null;
+}
+
+export interface DayTotals {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+}
+
+export interface DayPlan {
+  day: string;
+  meals: DayMeals;
+  totals: DayTotals;
+}
+
+export interface UserInfo {
+  height: number;
+  weight: number;
+  age: number;
+  gender: string;
+  activity_level: string;
+}
+
+export interface DietPlanResponse {
+  bmr: number;
+  tdee: number;
+  daily_calorie_target: number;
+  goal: string;
+  user_info: UserInfo;
+  allergies: string[];
+  week_plan: DayPlan[];
+}

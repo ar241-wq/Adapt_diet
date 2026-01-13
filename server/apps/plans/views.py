@@ -124,3 +124,96 @@ def admin_plan_delete(request, pk):
     plan = get_object_or_404(PlanProgram, pk=pk)
     plan.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ============== DIET PLAN GENERATOR ==============
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def generate_diet_plan(request):
+    """
+    Generate a personalized 7-day diet plan based on user input.
+
+    Request body:
+    {
+        "height": 175,        # cm (required)
+        "weight": 70,         # kg (required)
+        "allergies": ["nuts", "dairy"],  # optional
+        "goal": "maintain",   # lose, maintain, gain (default: maintain)
+        "age": 30,            # optional (default: 30)
+        "gender": "male",     # male, female (default: male)
+        "activity_level": "moderate"  # sedentary, light, moderate, active, very_active
+    }
+    """
+    from .diet_generator import generate_weekly_plan
+
+    # Validate required fields
+    height = request.data.get('height')
+    weight = request.data.get('weight')
+
+    if not height or not weight:
+        return Response(
+            {'error': 'Height and weight are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        height = float(height)
+        weight = float(weight)
+    except (ValueError, TypeError):
+        return Response(
+            {'error': 'Height and weight must be numbers'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Validate ranges
+    if height < 100 or height > 250:
+        return Response(
+            {'error': 'Height must be between 100 and 250 cm'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if weight < 30 or weight > 300:
+        return Response(
+            {'error': 'Weight must be between 30 and 300 kg'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Get optional fields
+    allergies = request.data.get('allergies', [])
+    if isinstance(allergies, str):
+        allergies = [a.strip() for a in allergies.split(',') if a.strip()]
+
+    goal = request.data.get('goal', 'maintain')
+    if goal not in ['lose', 'maintain', 'gain']:
+        goal = 'maintain'
+
+    age = request.data.get('age', 30)
+    try:
+        age = int(age)
+        if age < 18 or age > 100:
+            age = 30
+    except (ValueError, TypeError):
+        age = 30
+
+    gender = request.data.get('gender', 'male')
+    if gender not in ['male', 'female']:
+        gender = 'male'
+
+    activity_level = request.data.get('activity_level', 'moderate')
+    valid_levels = ['sedentary', 'light', 'moderate', 'active', 'very_active']
+    if activity_level not in valid_levels:
+        activity_level = 'moderate'
+
+    # Generate the plan
+    plan = generate_weekly_plan(
+        height=height,
+        weight=weight,
+        allergies=allergies,
+        goal=goal,
+        age=age,
+        gender=gender,
+        activity_level=activity_level
+    )
+
+    return Response(plan)

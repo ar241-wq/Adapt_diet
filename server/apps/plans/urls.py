@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     # Public endpoints
     path('', views.public_plan_list, name='plan-list'),
+    path('generate-diet/', views.generate_diet_plan, name='generate-diet-plan'),
     path('<slug:slug>/', views.public_plan_detail, name='plan-detail'),
 
     # Admin endpoints

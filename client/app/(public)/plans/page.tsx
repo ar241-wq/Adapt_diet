@@ -2,6 +2,7 @@
 
 import { Metadata } from 'next';
 import PlanCard from '@/components/public/PlanCard';
+import DietPlanBuilder from '@/components/public/DietPlanBuilder';
 import { usePlans } from '@/hooks/usePlans';
 import Loading from '@/components/ui/Loading';
 
@@ -59,6 +60,9 @@ export default function PlansPage() {
           )}
         </div>
       </section>
+
+      {/* AI Diet Plan Builder */}
+      <DietPlanBuilder />
 
       {/* CTA */}
       <section className="py-16 bg-gray-50">
