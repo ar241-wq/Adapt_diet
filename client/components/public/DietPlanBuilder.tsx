@@ -86,6 +86,285 @@ function DayCard({ dayPlan }: { dayPlan: DayPlan }) {
   );
 }
 
+interface ProgressChartProps {
+  currentWeight: number;
+  goal: string;
+  tdee: number;
+  dailyCalories: number;
+}
+
+function ProgressChart({ currentWeight, goal, tdee, dailyCalories }: ProgressChartProps) {
+  // Calculate weekly weight change based on calorie difference
+  // 7700 calories = ~1 kg of body weight
+  const weeklyCalorieDiff = (dailyCalories - tdee) * 7;
+  const weeklyWeightChange = weeklyCalorieDiff / 7700;
+
+  // Project weight for 8 weeks
+  const weeks = 8;
+  const projectedWeights: number[] = [];
+  for (let i = 0; i <= weeks; i++) {
+    projectedWeights.push(Math.round((currentWeight + weeklyWeightChange * i) * 10) / 10);
+  }
+
+  const minWeight = Math.min(...projectedWeights) - 2;
+  const maxWeight = Math.max(...projectedWeights) + 2;
+  const weightRange = maxWeight - minWeight;
+
+  // SVG dimensions
+  const width = 600;
+  const height = 300;
+  const padding = { top: 40, right: 40, bottom: 50, left: 60 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+
+  // Calculate points
+  const points = projectedWeights.map((weight, i) => ({
+    x: padding.left + (i / weeks) * chartWidth,
+    y: padding.top + ((maxWeight - weight) / weightRange) * chartHeight,
+    weight,
+    week: i,
+  }));
+
+  // Create path
+  const linePath = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+    .join(' ');
+
+  // Area path (for gradient fill)
+  const areaPath = `${linePath} L ${points[points.length - 1].x} ${padding.top + chartHeight} L ${points[0].x} ${padding.top + chartHeight} Z`;
+
+  // Calculate improvement stats
+  const totalChange = projectedWeights[weeks] - currentWeight;
+  const percentChange = ((totalChange / currentWeight) * 100).toFixed(1);
+  const isLosing = goal === 'lose';
+  const isGaining = goal === 'gain';
+
+  // Get goal-specific messaging
+  const getGoalMessage = () => {
+    if (goal === 'lose') {
+      return {
+        title: 'Weight Loss Projection',
+        subtitle: `Lose ${Math.abs(totalChange).toFixed(1)} kg in 8 weeks`,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        gradientId: 'blueGradient',
+        gradientColors: ['#3B82F6', '#93C5FD'],
+        strokeColor: '#2563EB',
+      };
+    } else if (goal === 'gain') {
+      return {
+        title: 'Muscle Gain Projection',
+        subtitle: `Gain ${totalChange.toFixed(1)} kg in 8 weeks`,
+        color: 'text-green-600',
+        bgColor: 'bg-green-50',
+        gradientId: 'greenGradient',
+        gradientColors: ['#22C55E', '#86EFAC'],
+        strokeColor: '#16A34A',
+      };
+    }
+    return {
+      title: 'Weight Maintenance',
+      subtitle: 'Stay at your current weight',
+      color: 'text-gray-600',
+      bgColor: 'bg-gray-50',
+      gradientId: 'grayGradient',
+      gradientColors: ['#6B7280', '#D1D5DB'],
+      strokeColor: '#4B5563',
+    };
+  };
+
+  const goalStyle = getGoalMessage();
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h3 className="text-xl font-bold text-gray-900">{goalStyle.title}</h3>
+          <p className={`text-lg font-medium ${goalStyle.color}`}>{goalStyle.subtitle}</p>
+        </div>
+        <div className="flex gap-4">
+          <div className={`${goalStyle.bgColor} rounded-xl px-4 py-3 text-center`}>
+            <div className="text-2xl font-bold text-gray-800">{currentWeight} kg</div>
+            <div className="text-xs text-gray-500">Starting</div>
+          </div>
+          <div className="flex items-center">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </div>
+          <div className={`${goalStyle.bgColor} rounded-xl px-4 py-3 text-center`}>
+            <div className={`text-2xl font-bold ${goalStyle.color}`}>{projectedWeights[weeks]} kg</div>
+            <div className="text-xs text-gray-500">Week 8</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[400px]">
+          <defs>
+            <linearGradient id={goalStyle.gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor={goalStyle.gradientColors[0]} stopOpacity="0.3" />
+              <stop offset="100%" stopColor={goalStyle.gradientColors[1]} stopOpacity="0.05" />
+            </linearGradient>
+          </defs>
+
+          {/* Grid lines */}
+          {[0, 1, 2, 3, 4].map((i) => {
+            const y = padding.top + (i / 4) * chartHeight;
+            const weight = maxWeight - (i / 4) * weightRange;
+            return (
+              <g key={i}>
+                <line
+                  x1={padding.left}
+                  y1={y}
+                  x2={width - padding.right}
+                  y2={y}
+                  stroke="#E5E7EB"
+                  strokeDasharray="4"
+                />
+                <text
+                  x={padding.left - 10}
+                  y={y + 4}
+                  textAnchor="end"
+                  className="text-xs fill-gray-500"
+                >
+                  {weight.toFixed(1)}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* X-axis labels */}
+          {points.map((p) => (
+            <text
+              key={p.week}
+              x={p.x}
+              y={height - padding.bottom + 25}
+              textAnchor="middle"
+              className="text-xs fill-gray-500"
+            >
+              {p.week === 0 ? 'Now' : `W${p.week}`}
+            </text>
+          ))}
+
+          {/* Area fill */}
+          <path d={areaPath} fill={`url(#${goalStyle.gradientId})`} />
+
+          {/* Line */}
+          <path
+            d={linePath}
+            fill="none"
+            stroke={goalStyle.strokeColor}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {/* Data points */}
+          {points.map((p, i) => (
+            <g key={i}>
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r="6"
+                fill="white"
+                stroke={goalStyle.strokeColor}
+                strokeWidth="3"
+              />
+              {(i === 0 || i === weeks) && (
+                <text
+                  x={p.x}
+                  y={p.y - 15}
+                  textAnchor="middle"
+                  className="text-sm font-semibold fill-gray-700"
+                >
+                  {p.weight} kg
+                </text>
+              )}
+            </g>
+          ))}
+
+          {/* Y-axis label */}
+          <text
+            x={20}
+            y={height / 2}
+            textAnchor="middle"
+            transform={`rotate(-90, 20, ${height / 2})`}
+            className="text-xs fill-gray-500"
+          >
+            Weight (kg)
+          </text>
+
+          {/* X-axis label */}
+          <text
+            x={width / 2}
+            y={height - 10}
+            textAnchor="middle"
+            className="text-xs fill-gray-500"
+          >
+            Weeks
+          </text>
+        </svg>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-100">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-gray-800">
+            {Math.abs(weeklyWeightChange).toFixed(2)} kg
+          </div>
+          <div className="text-sm text-gray-500">Per Week</div>
+        </div>
+        <div className="text-center">
+          <div className={`text-2xl font-bold ${isLosing ? 'text-blue-600' : isGaining ? 'text-green-600' : 'text-gray-600'}`}>
+            {isLosing ? '-' : isGaining ? '+' : ''}{Math.abs(totalChange).toFixed(1)} kg
+          </div>
+          <div className="text-sm text-gray-500">Total Change</div>
+        </div>
+        <div className="text-center">
+          <div className={`text-2xl font-bold ${isLosing ? 'text-blue-600' : isGaining ? 'text-green-600' : 'text-gray-600'}`}>
+            {isLosing ? '-' : isGaining ? '+' : ''}{Math.abs(Number(percentChange))}%
+          </div>
+          <div className="text-sm text-gray-500">Body Change</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-primary-600">
+            {Math.abs(tdee - dailyCalories)}
+          </div>
+          <div className="text-sm text-gray-500">
+            Cal {isLosing ? 'Deficit' : isGaining ? 'Surplus' : 'Balance'}/day
+          </div>
+        </div>
+      </div>
+
+      {/* Motivation message */}
+      <div className={`mt-6 p-4 ${goalStyle.bgColor} rounded-xl`}>
+        <p className="text-center text-gray-700">
+          {goal === 'lose' && (
+            <>
+              Following this plan consistently, you can expect to reach <strong>{projectedWeights[weeks]} kg</strong> in 8 weeks.
+              That is a healthy, sustainable rate of <strong>{Math.abs(weeklyWeightChange).toFixed(2)} kg per week</strong>!
+            </>
+          )}
+          {goal === 'gain' && (
+            <>
+              With proper training and this nutrition plan, you can gain <strong>{totalChange.toFixed(1)} kg</strong> of lean mass in 8 weeks.
+              Focus on protein intake and strength training for best results!
+            </>
+          )}
+          {goal === 'maintain' && (
+            <>
+              This balanced plan will help you maintain your current weight of <strong>{currentWeight} kg</strong> while
+              ensuring optimal nutrition and energy levels.
+            </>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function DietPlanBuilder() {
   const [formData, setFormData] = useState<DietPlanRequest>({
     height: 170,
@@ -348,6 +627,14 @@ export default function DietPlanBuilder() {
                 </div>
               )}
             </div>
+
+            {/* Progress Chart */}
+            <ProgressChart
+              currentWeight={plan.user_info.weight}
+              goal={plan.goal}
+              tdee={plan.tdee}
+              dailyCalories={plan.daily_calorie_target}
+            />
 
             {/* Day Selector */}
             <div className="flex overflow-x-auto gap-2 pb-2">
